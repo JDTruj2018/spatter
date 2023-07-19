@@ -40,6 +40,11 @@
 	#include "mpi.h"
 #endif
 
+#ifdef USE_CALIPER
+    #include <caliper/cali.h>
+    #include <caliper/cali-manager.h>
+#endif
+
 #define ALIGNMENT (4096)
 
 #define xstr(s) str(s)
@@ -608,8 +613,15 @@ int main(int argc, char **argv)
 
 
     // Print config info
+#ifdef USE_CALIPER
+    CALI_MARK_LOOP_BEGIN(runconfig_loop, "RunConfig Loop");
+#endif
 
     for (int k = 0; k < nrc; k++) {
+#ifdef USE_CALIPER
+        CALI_MARK_ITERATION_BEGIN(runconfig_loop, k);
+#endif
+
 #ifdef USE_MPI
 	MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -626,7 +638,15 @@ int main(int argc, char **argv)
         int wpt = 1;
         if (backend == CUDA) {
             float time_ms = 2;
+
+#ifdef USE_CALIPER
+            CALI_MARK_LOOP_BEGIN(kernel, "kernel");
+#endif      
             for (int i = -10; i < (int) rc2[k].nruns; i++) {
+#ifdef USE_CALIPER
+                CALI_MARK_ITERATION_BEGIN(kernel, i);
+#endif
+
 #define arr_len (1)
                 if (rc2[k].kernel == MULTISCATTER) {
                   unsigned long global_work_size = rc2[k].generic_len / wpt * rc2[k].pattern_scatter_len;
@@ -666,8 +686,15 @@ int main(int argc, char **argv)
                 }
 
                 if (i>=0) rc2[k].time_ms[i] = time_ms;
+            
+#ifdef USE_CALIPER
+                CALI_MARK_ITERATION_END(kernel);
+#endif
             }
 
+#ifdef USE_CALIPER
+            CALI_MARK_LOOP_END(kernel);
+#endif
 
         }
 
@@ -678,8 +705,16 @@ int main(int argc, char **argv)
         if (backend == OPENMP) {
             omp_set_num_threads(rc2[k].omp_threads);
 
+#ifdef USE_CALIPER
+            CALI_MARK_LOOP_BEGIN(kernel, "kernel");
+#endif
+
             // Start at -1 to do a cache warm
             for (int i = -1; i < (int) rc2[k].nruns; i++) {
+
+#ifdef USE_CALIPER
+                CALI_MARK_ITERATION_BEGIN(kernel, i);
+#endif
 
                 if (i!=-1) sg_zero_time();
 #ifdef USE_PAPI
@@ -757,7 +792,14 @@ int main(int argc, char **argv)
 #endif
                 if (i!= -1) rc2[k].time_ms[i] = sg_get_time_ms();
 
+#ifdef USE_CALIPER
+                CALI_MARK_ITERATION_END(kernel);
+#endif
             }
+
+#ifdef USE_CALIPER
+            CALI_MARK_LOOP_END(kernel);
+#endif
 
             //report_time2(rc2, nrc);
         }
@@ -767,7 +809,14 @@ int main(int argc, char **argv)
         #ifdef USE_SERIAL
         if (backend == SERIAL) {
 
+#ifdef USE_CALIPER
+            CALI_MARK_LOOP_BEGIN(kernel, "kernel");
+#endif
+
             for (int i = -1; i < (int) rc2[k].nruns; i++) {
+#ifdef USE_CALIPER
+                CALI_MARK_ITERATION_BEGIN(kernel, i);
+#endif
 
                 if (i!=-1) sg_zero_time();
 #ifdef USE_PAPI
@@ -796,6 +845,10 @@ int main(int argc, char **argv)
                         break;
                 }
 
+#ifdef USE_CALIPER
+            CALI_MARK_ITERATION_END(kernel);
+#endif
+
                 //double time_ms = sg_get_time_ms();
                 //if (i!=0) report_time(k, time_ms/1000., rc2[k], i);
 #ifdef USE_PAPI
@@ -803,9 +856,21 @@ int main(int argc, char **argv)
 #endif
                 if (i!= -1) rc2[k].time_ms[i] = sg_get_time_ms();
             }
+#ifdef USE_CALIPER
+            CALI_MARK_LOOP_END(kernel);
+#endif
+
         }
         #endif // USE_SERIAL
+    
+#ifdef USE_CALIPER
+        CALI_MARK_ITERATION_END(runconfig_loop);
+#endif
     }
+
+#ifdef USE_CALIPER
+    CALI_MARK_LOOP_END(runconfig_loop);
+#endif
 
 #ifdef USE_MPI
     MPI_Barrier(MPI_COMM_WORLD);

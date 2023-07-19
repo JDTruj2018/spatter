@@ -20,6 +20,7 @@ SET (USE_OPENMP 0 CACHE BOOL "If set, builds with OpenMP support")
 SET (USE_SERIAL 0 CACHE BOOL "If set, builds with Serial support")
 SET (USE_PAPI 0 CACHE BOOL "If set, builds with PAPI support")
 SET (USE_MPI 0 CACHE BOOL "If set, builds with MPI support")
+SET (USE_CALIPER 0 CACHE BOOL "If set, builds with Caliper support")
 
 ADD_DEFINITIONS (-DSG_DATA_TYPE=double)
 
@@ -201,6 +202,13 @@ IF (USE_PAPI)
     FILE (GLOB PAPI_H_FILES src/papi/*.h)
 ENDIF ()
 
+IF (USE_CALIPER)
+    SET (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+    ADD_DEFINITIONS (-DUSE_CALIPER)
+    INCLUDE (CaliperSupport)
+    INCLUDE_DIRECTORIES(${caliper_INCLUDE_DIR})
+ENDIF ()
+
 # Include the location of stddef.h include_directories(/usr/include/linux/)
 
 # Include amalgamated argtable files
@@ -259,6 +267,11 @@ IF (USE_PAPI)
     # Explicitly link libdl because the Cray compiler refuses to link papi dynaimically...
     # (Static libraries carry no dependency info, and libpapi depends on libdl)
     TARGET_LINK_LIBRARIES (${TRGT} LINK_PUBLIC dl)
+ENDIF ()
+
+#Include Caliper libraries, if defined
+IF (USE_CALIPER)
+    TARGET_LINK_LIBRARIES (${TRGT} LINK_PUBLIC caliper)
 ENDIF ()
 
 # Copy over the test scripts
